@@ -1,0 +1,184 @@
+[
+ {
+  "record": "100",
+  "title": "Normal sinus rhythm",
+  "note": "A healthy-looking rhythm: regular P-QRS-T complexes at 60-100 bpm. Start here.",
+  "lead": "MLII",
+  "start_s": 10.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(N"
+  ],
+  "counts": {
+   "N": 74,
+   "S": 0,
+   "V": 0,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "212",
+  "title": "Right bundle branch block",
+  "note": "Wide, notched QRS complexes. Still a normal (N) beat in AAMI terms because it starts in the sinus node.",
+  "lead": "MLII",
+  "start_s": 410.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(N"
+  ],
+  "counts": {
+   "N": 97,
+   "S": 0,
+   "V": 0,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "200",
+  "title": "Ventricular bigeminy",
+  "note": "Every other beat is a premature ventricular contraction (PVC): wide, bizarre, early, then a pause.",
+  "lead": "MLII",
+  "start_s": 1190.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(B"
+  ],
+  "counts": {
+   "N": 43,
+   "S": 0,
+   "V": 43,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "233",
+  "title": "Frequent multiform PVCs",
+  "note": "Many PVCs with different shapes, including couplets and short runs.",
+  "lead": "MLII",
+  "start_s": 1310.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(N",
+   "(VT"
+  ],
+  "counts": {
+   "N": 64,
+   "S": 0,
+   "V": 40,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "213",
+  "title": "Fusion beats",
+  "note": "A ventricular and a normal beat fire at the same time and merge into a hybrid shape (F). Hard for any classifier.",
+  "lead": "MLII",
+  "start_s": 180.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(N"
+  ],
+  "counts": {
+   "N": 64,
+   "S": 0,
+   "V": 6,
+   "F": 40,
+   "Q": 0
+  }
+ },
+ {
+  "record": "221",
+  "title": "Atrial fibrillation",
+  "note": "No P waves and an 'irregularly irregular' rhythm. Each beat is normal, so the rhythm analysis must catch it.",
+  "lead": "MLII",
+  "start_s": 1740.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(AFIB"
+  ],
+  "counts": {
+   "N": 75,
+   "S": 0,
+   "V": 1,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "232",
+  "title": "Bradycardia, APCs and long pauses",
+  "note": "Slow ectopic atrial rhythm with pauses of several seconds. The abnormal beats are the patient's *usual* rhythm here, which defeats classifiers that compare beats with the patient's norm.",
+  "lead": "MLII",
+  "start_s": 1030.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(SBR"
+  ],
+  "counts": {
+   "N": 13,
+   "S": 46,
+   "V": 0,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "231",
+  "title": "2:1 heart block",
+  "note": "Every second P wave is not conducted, halving the ventricular rate. Watch the long, regular RR intervals.",
+  "lead": "MLII",
+  "start_s": 340.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(BII"
+  ],
+  "counts": {
+   "N": 36,
+   "S": 0,
+   "V": 0,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "105",
+  "title": "Heavy real-world noise",
+  "note": "Large muscle and motion artifacts from an ambulatory recording. A stress test for filtering and detection.",
+  "lead": "MLII",
+  "start_s": 830.0,
+  "split": "DS2 (unseen test patient)",
+  "rhythms": [
+   "(N"
+  ],
+  "counts": {
+   "N": 85,
+   "S": 0,
+   "V": 1,
+   "F": 0,
+   "Q": 0
+  }
+ },
+ {
+  "record": "209",
+  "title": "Supraventricular tachycardia",
+  "note": "Bursts of rapid supraventricular (S) beats. This patient was in the training set (DS1).",
+  "lead": "MLII",
+  "start_s": 560.0,
+  "split": "DS1 (training patient)",
+  "rhythms": [
+   "(N",
+   "(SVTA"
+  ],
+  "counts": {
+   "N": 23,
+   "S": 119,
+   "V": 0,
+   "F": 0,
+   "Q": 0
+  }
+ }
+]

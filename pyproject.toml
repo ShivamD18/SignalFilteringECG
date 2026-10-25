@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecg-signal-lab"
+version = "1.0.0"
+description = "Educational ECG filtering, Pan-Tompkins QRS detection and machine-learning arrhythmia classification on the MIT-BIH database"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "matplotlib>=3.7",
+    "wfdb>=4.1",
+    "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+ssl = ["truststore>=0.9"]
+
+[project.scripts]
+ecglab = "ecglab.__main__:main"
+
+[tool.setuptools]
+packages = ["ecglab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]

@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ECG Signal Lab</title>
+  <meta name="description" content="Interactive lessons in biomedical signal processing: filter real ECGs from the MIT-BIH Arrhythmia Database, detect heartbeats with Pan-Tompkins and classify them with machine learning, all in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c2255c'/%3E%3Cpath d='M3 17h7l2-5 3 11 3-16 3 10h8' fill='none' stroke='white' stroke-width='2.4' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="ECG Signal Lab home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M3 17h7l2-5 3 11 3-16 3 10h8"/></svg>
+      <span>ECG Signal Lab</span>
+    </a>
+    <nav class="steps-nav" aria-label="Lessons">
+      <a href="#signal"><b>1</b> Signal</a>
+      <a href="#noise"><b>2</b> Noise</a>
+      <a href="#filters"><b>3</b> Filters</a>
+      <a href="#detect"><b>4</b> Detection</a>
+      <a href="#classify"><b>5</b> Classification</a>
+      <a href="#report"><b>6</b> Report</a>
+    </nav>
+    <div class="topbar-tools">
+      <label class="sr-only" for="record-select">Recording</label>
+      <select id="record-select" title="Recording used on every lesson"></select>
+      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <p class="eyebrow">Biomedical signal processing, hands-on</p>
+      <h1>Clean up a real heartbeat, then teach a machine to read it.</h1>
+      <p class="lede">Every trace on this page is a real recording from the
+        <a href="https://physionet.org/content/mitdb/1.0.0/" target="_blank" rel="noopener">MIT-BIH Arrhythmia Database</a>,
+        the dataset that most published ECG algorithms are tested on. Add real-world noise, design filters, watch the classic
+        Pan-Tompkins detector find each beat, and see a machine-learning model sort normal beats from abnormal ones.
+        Everything runs in your browser.</p>
+      <p class="disclaimer" role="note"><strong>Educational tool only.</strong> This is not a medical device, it has not been clinically
+        validated, and it must never be used to diagnose or treat anyone.</p>
+      <h2 class="kicker">Choose a recording</h2>
+      <div id="record-cards" class="cards" role="list"></div>
+    </section>
+
+    <div class="viewbar" id="viewbar">
+      <div class="viewbar-inner">
+        <span class="viewbar-rec" id="viewbar-rec"></span>
+        <label for="view-start">Window</label>
+        <input id="view-start" type="range" min="0" max="50" step="0.5" value="0">
+        <span id="view-label" class="mono">0-10 s</span>
+        <label for="view-span" class="sr-only">Window length</label>
+        <select id="view-span">
+          <option value="5">5 s</option><option value="10" selected>10 s</option>
+          <option value="20">20 s</option><option value="60">60 s</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 1 -->
+    <section id="signal" class="lesson">
+      <header class="lesson-head"><span class="step">1</span><div><h2>The ECG signal</h2><p>What the electrodes actually measure</p></div></header>
+      <div class="grid-2">
+        <div class="prose">
+          <p>Each heartbeat starts as an electrical wave that spreads through the heart muscle. Electrodes on the skin pick up a
+            millivolt-sized shadow of it: the <b>electrocardiogram</b>.</p>
+          <ul class="waves">
+            <li><b>P wave</b>: the atria depolarise and contract.</li>
+            <li><b>QRS complex</b>: the ventricles depolarise. It is tall and fast (80-120 ms), which is why it is the easiest thing to detect.</li>
+            <li><b>T wave</b>: the ventricles repolarise and recover.</li>
+          </ul>
+          <p>MIT-BIH was recorded on ambulatory (Holter) monitors at Boston's Beth Israel Hospital, digitised at
+            <b>360 samples per second</b> with 11-bit resolution over a 10 mV range. Two or more cardiologists labelled all
+            ~110,000 beats, which is what lets us measure how good an algorithm is.</p>
+          <p>The pink grid is the same as clinical ECG paper: a small square is <b>40 ms x 0.1 mV</b>, a big square
+            <b>200 ms x 0.5 mV</b>.</p>
+        </div>
+        <figure class="card figure">
+          <canvas id="plot-avg" class="strip-sm" aria-label="Median heartbeat of this recording"></canvas>
+          <figcaption>This patient's <em>median</em> beat (average of all normal beats) with the approximate P, QRS, ST and T regions.</figcaption>
+        </figure>
+      </div>
+      <div class="card plot-card">
+        <div class="plot-head">
+          <h3>Recording <span id="raw-title"></span></h3>
+          <div class="legend" id="legend-ref"></div>
+        </div>
+        <canvas id="plot-raw" class="strip" aria-label="Raw ECG with cardiologist beat labels"></canvas>
+        <p class="caption" id="record-note"></p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="noise" class="lesson">
+      <header class="lesson-head"><span class="step">2</span><div><h2>Where noise comes from</h2><p>Mix real noise into the recording</p></div></header>
+      <div class="grid-ctrl">
+        <div class="card controls">
+          <h3>Add noise</h3>
+          <p class="hint">Baseline wander, muscle and electrode-motion noise are <b>real recordings</b> from the
+            <a href="https://physionet.org/content/nstdb/1.0.0/" target="_blank" rel="noopener">MIT-BIH Noise Stress Test Database</a>.</p>
+          <div class="ctl"><label for="n-bw">Baseline wander <small>(breathing, drift)</small></label><input id="n-bw" type="range" min="0" max="2" step="0.05" value="0"><output for="n-bw"></output></div>
+          <div class="ctl"><label for="n-ma">Muscle artifact <small>(EMG)</small></label><input id="n-ma" type="range" min="0" max="2" step="0.05" value="0"><output for="n-ma"></output></div>
+          <div class="ctl"><label for="n-em">Electrode motion</label><input id="n-em" type="range" min="0" max="2" step="0.05" value="0"><output for="n-em"></output></div>
+          <div class="ctl"><label for="n-pl">Power-line hum <small>(mV)</small></label><input id="n-pl" type="range" min="0" max="0.5" step="0.01" value="0"><output for="n-pl"></output></div>
+          <div class="seg" role="radiogroup" aria-label="Mains frequency">
+            <label><input type="radio" name="pl-hz" value="50"> 50 Hz <small>(Europe, Asia, Africa)</small></label>
+            <label><input type="radio" name="pl-hz" value="60" checked> 60 Hz <small>(Americas)</small></label>
+          </div>
+          <div class="presets" id="noise-presets">
+            <button type="button" data-noise="clean">Clean</button>
+            <button type="button" data-noise="breathing">Breathing</button>
+            <button type="button" data-noise="muscle">Tense muscles</button>
+            <button type="button" data-noise="motion">Walking</button>
+            <button type="button" data-noise="mains">Mains hum</button>
+            <button type="button" data-noise="all">Everything</button>
+          </div>
+          <div class="stats"><div><span>Input SNR</span><b id="s-insnr">-</b></div></div>
+        </div>
+        <div class="stack">
+          <div class="card plot-card">
+            <div class="plot-head"><h3>Noisy signal</h3>
+              <label class="toggle"><input type="checkbox" id="show-clean-noise" checked> show original</label></div>
+            <canvas id="plot-noisy" class="strip"></canvas>
+          </div>
+          <div class="card plot-card">
+            <div class="plot-head"><h3>Where the energy is: power spectrum</h3>
+              <div class="legend"><i class="sw" style="--c:var(--ref)"></i>ECG <i class="sw" style="--c:var(--V)"></i>added noise</div></div>
+            <canvas id="spec-noise" class="spec"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="info-table">
+          <thead><tr><th>Noise</th><th>Frequency band</th><th>Cause</th><th>Usual remedy</th></tr></thead>
+          <tbody>
+            <tr><td>Baseline wander</td><td>below ~0.5 Hz</td><td>breathing, sweat, electrode drift</td><td>high-pass filter or median baseline removal</td></tr>
+            <tr><td>Power-line hum</td><td>50 or 60 Hz (+ harmonics)</td><td>capacitive coupling to mains wiring</td><td>notch filter, good grounding, driven right leg</td></tr>
+            <tr><td>Muscle (EMG)</td><td>~20-500 Hz, broadband</td><td>skeletal muscle activity, shivering</td><td>low-pass filter (but it overlaps the QRS)</td></tr>
+            <tr><td>Electrode motion</td><td>~1-10 Hz</td><td>skin stretching under the electrode</td><td>hard: it sits inside the ECG band; better electrodes, adaptive filters</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="try"><b>Try this:</b> turn on <em>Mains hum</em> and look at the spectrum: a single sharp needle. Then try
+        <em>Tense muscles</em>: that noise smears across the same frequencies as the QRS complex, so no simple filter can remove all of it.</aside>
+    </section>
+
+    <!-- 3 -->
+    <section id="filters" class="lesson">
+      <header class="lesson-head"><span class="step">3</span><div><h2>Designing the filter</h2><p>Remove noise without damaging the ECG</p></div></header>
+      <div class="grid-ctrl">
+        <div class="card controls">
+          <h3>Filter chain</h3>
+          <fieldset>
+            <legend>Baseline removal (high-pass)</legend>
+            <div class="seg" role="radiogroup" aria-label="Baseline method">
+              <label><input type="radio" name="hp-method" value="butter" checked> Butterworth</label>
+              <label><input type="radio" name="hp-method" value="median"> Median</label>
+              <label><input type="radio" name="hp-method" value="off"> Off</label>
+            </div>
+            <div class="ctl" data-for="butter"><label for="f-hp">Cut-off</label><input id="f-hp" type="range" min="0" max="100" step="1" value="50"><output for="f-hp"></output></div>
+            <div class="ctl" data-for="butter"><label for="f-hp-order">Order</label><select id="f-hp-order"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+          </fieldset>
+          <fieldset>
+            <legend><label><input type="checkbox" id="f-lp-on" checked> Low-pass</label></legend>
+            <div class="ctl"><label for="f-lp">Cut-off</label><input id="f-lp" type="range" min="10" max="150" step="1" value="40"><output for="f-lp"></output></div>
+            <div class="ctl"><label for="f-lp-order">Order</label><select id="f-lp-order"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+          </fieldset>
+          <fieldset>
+            <legend><label><input type="checkbox" id="f-notch-on"> Notch</label></legend>
+            <div class="ctl"><label for="f-notch-hz">Centre</label><select id="f-notch-hz"><option value="50">50 Hz</option><option value="60" selected>60 Hz</option></select></div>
+            <div class="ctl"><label for="f-notch-q">Q (sharpness)</label><input id="f-notch-q" type="range" min="5" max="60" step="1" value="30"><output for="f-notch-q"></output></div>
+          </fieldset>
+          <fieldset>
+            <legend>Phase</legend>
+            <div class="seg" role="radiogroup" aria-label="Filtering mode">
+              <label><input type="radio" name="phase" value="zero" checked> Zero-phase <small>(offline)</small></label>
+              <label><input type="radio" name="phase" value="causal"> Causal <small>(real-time)</small></label>
+            </div>
+          </fieldset>
+          <div class="presets" id="filter-presets">
+            <button type="button" data-filter="training">Training pipeline</button>
+            <button type="button" data-filter="diagnostic">Diagnostic</button>
+            <button type="button" data-filter="monitor">Bedside monitor</button>
+            <button type="button" data-filter="harsh">Over-filtered</button>
+            <button type="button" data-filter="median">Median baseline</button>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="stats wide" id="filter-stats">
+            <div><span>Output SNR</span><b id="s-outsnr">-</b></div>
+            <div><span>Improvement</span><b id="s-gain">-</b></div>
+            <div><span>Residual noise</span><b id="s-resid">-</b></div>
+            <div><span>Signal distortion</span><b id="s-dist">-</b></div>
+            <div><span>R-wave height kept</span><b id="s-ramp">-</b></div>
+          </div>
+          <div class="card plot-card">
+            <div class="plot-head"><h3>Filtered output</h3>
+              <div class="legend">
+                <label class="toggle"><input type="checkbox" id="show-noisy" checked><i class="sw" style="--c:var(--noisy)"></i>noisy input</label>
+                <label class="toggle"><input type="checkbox" id="show-ref"><i class="sw" style="--c:var(--ref)"></i>reference</label>
+              </div></div>
+            <canvas id="plot-filtered" class="strip"></canvas>
+          </div>
+          <div class="grid-2 tight">
+            <div class="card plot-card">
+              <div class="plot-head"><h3>Spectrum and filter response</h3></div>
+              <canvas id="spec-filter" class="spec"></canvas>
+              <p class="caption"><i class="sw" style="--c:var(--noisy)"></i>input <i class="sw" style="--c:var(--trace)"></i>output <i class="sw dash" style="--c:var(--accent)"></i>filter gain (right axis)</p>
+            </div>
+            <div class="card plot-card">
+              <div class="plot-head"><h3>Shape of the average beat</h3></div>
+              <canvas id="plot-beat-dist" class="spec"></canvas>
+              <p class="caption"><i class="sw" style="--c:var(--accent-2)"></i>clean ECG through your filter <i class="sw dash" style="--c:var(--muted)"></i>reference. Any gap is distortion caused by the filter itself.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="explain grid-3">
+        <div><h4>Butterworth</h4><p>Maximally flat in the passband. Higher order means a steeper roll-off, but also more ringing and phase distortion.</p></div>
+        <div><h4>Zero-phase vs causal</h4><p>A real-time monitor can only use past samples, so its filter delays some frequencies more than others. Offline software runs the filter forward and then backward (<code>filtfilt</code>), which cancels the phase shift and doubles the attenuation.</p></div>
+        <div><h4>Why 0.5 Hz is a compromise</h4><p>Clinical guidelines (AHA 2007) allow a 0.67 Hz high-pass only if it is zero-phase; otherwise use 0.05 Hz. A causal high-pass above that bends the ST segment, the part doctors read for heart attacks.</p></div>
+      </div>
+      <aside class="try"><b>Try this:</b> <button type="button" class="linkish" data-recipe="st">pick <em>Bedside monitor</em> and raise the high-pass to 2 Hz</button>.
+        The ST segment after each QRS sags: a filter-made "ST depression". Switch to zero-phase and it disappears.
+        Then <button type="button" class="linkish" data-recipe="harsh">try <em>Over-filtered</em></button>: the P and T waves vanish and the R wave shrinks,
+        yet the detector in lesson 4 still works, because Pan-Tompkins uses exactly this band.</aside>
+    </section>
+
+    <!-- 4 -->
+    <section id="detect" class="lesson">
+      <header class="lesson-head"><span class="step">4</span><div><h2>Finding every heartbeat</h2><p>The Pan-Tompkins algorithm (1985)</p></div></header>
+      <div class="grid-2">
+        <div class="prose">
+          <p>Before classifying beats we have to find them. Pan and Tompkins' detector is still the standard baseline, and this
+            page runs it on <em>your</em> filtered signal from lesson 3:</p>
+          <ol class="pipeline">
+            <li><b>Band-pass 5-15 Hz</b> keeps the QRS energy and rejects P/T waves, baseline and hum.</li>
+            <li><b>Derivative</b> emphasises the steep slopes of the QRS.</li>
+            <li><b>Squaring</b> makes everything positive and boosts big slopes.</li>
+            <li><b>Moving-window integration</b> (150 ms) merges each QRS into one smooth hump.</li>
+            <li><b>Adaptive thresholds</b> track running estimates of signal and noise peaks, search back for missed beats, and
+              reject T waves by their gentler slope.</li>
+          </ol>
+          <div class="stats"><div><span>Detected</span><b id="s-det">-</b></div><div><span>Sensitivity</span><b id="s-se">-</b></div><div><span>Positive predictivity</span><b id="s-ppv">-</b></div></div>
+          <p class="hint" id="detector-global"></p>
+        </div>
+        <div class="card plot-card stages">
+          <div class="plot-head"><h3>Stages</h3>
+            <div class="legend"><i class="sw dot" style="--c:var(--N)"></i>correct <i class="sw dot" style="--c:var(--V)"></i>false detection <i class="sw" style="--c:var(--S)"></i>missed beat</div></div>
+          <p class="stage-label">ECG with detections</p><canvas id="pt-ecg" class="strip-xs"></canvas>
+          <p class="stage-label">1. Band-passed 5-15 Hz</p><canvas id="pt-bp" class="strip-xs"></canvas>
+          <p class="stage-label">2-3. Squared derivative</p><canvas id="pt-sq" class="strip-xs"></canvas>
+          <p class="stage-label">4-5. Integrated, with adaptive threshold</p><canvas id="pt-mwi" class="strip-xs"></canvas>
+        </div>
+      </div>
+      <aside class="try"><b>Try this:</b> <button type="button" class="linkish" data-recipe="motion">add strong electrode-motion noise</button>
+        and watch false detections (red crosses) appear: motion artefacts look like QRS complexes to the detector.</aside>
+    </section>
+
+    <!-- 5 -->
+    <section id="classify" class="lesson">
+      <header class="lesson-head"><span class="step">5</span><div><h2>Classifying beats with machine learning</h2><p>Normal or abnormal, and which kind</p></div></header>
+      <div class="grid-2">
+        <div class="prose">
+          <p>Each detected beat becomes a row of <b><span id="n-features">46</span> numbers</b> (features). A
+            <span id="model-name">machine-learning</span> model turns them into one of four classes defined by the AAMI EC57 standard:</p>
+          <ul class="classes" id="class-list"></ul>
+          <p>The features fall into three groups:</p>
+          <ul>
+            <li><b>Rhythm (RR intervals)</b>: did the beat come early, and was there a pause after it? An ectopic beat usually arrives early and is followed by a compensatory pause.</li>
+            <li><b>Template comparison</b>: how different is the beat from this patient's own median beat? Ventricular beats look wide and strange.</li>
+            <li><b>Morphology</b>: 26 amplitude-normalised samples of the waveform.</li>
+          </ul>
+          <p>Click any beat on the strip to see what the model saw.</p>
+        </div>
+        <div class="card inspector" id="inspector">
+          <div class="plot-head"><h3>Beat inspector</h3><span id="insp-title" class="muted"></span></div>
+          <canvas id="plot-insp" class="spec"></canvas>
+          <p class="caption"><i class="sw" id="insp-sw" style="--c:var(--N)"></i>this beat <i class="sw dash" style="--c:var(--muted)"></i>patient's median beat (template)</p>
+          <div class="insp-grid">
+            <div><h4>Model output</h4><div id="insp-probs" class="bars"></div></div>
+            <div><h4>Key features</h4><dl id="insp-feats" class="kv"></dl></div>
+          </div>
+        </div>
+      </div>
+      <div class="card plot-card">
+        <div class="plot-head"><h3>Beat-by-beat classification</h3>
+          <div class="legend" id="legend-pred"></div></div>
+        <canvas id="plot-class" class="strip clickable" aria-label="Filtered ECG with predicted beat classes; click a beat to inspect it"></canvas>
+        <p class="caption">Top letters: model prediction. Bottom letters: cardiologists' label. <span id="seg-agree"></span></p>
+      </div>
+
+      <div class="grid-2 model-card">
+        <div class="card">
+          <h3>How well does it work?</h3>
+          <p class="hint" id="model-summary"></p>
+          <div class="table-wrap"><table class="metric-table" id="tbl-perclass"></table></div>
+          <h4>Confusion matrix (unseen test patients)</h4>
+          <div class="table-wrap"><table class="cm" id="tbl-cm"></table></div>
+        </div>
+        <div class="card">
+          <h3>Comparing algorithms</h3>
+          <p class="hint">Four classic machine-learning algorithms trained on the same features. The winner was chosen <em>only</em>
+            by cross-validation on the training patients, never by peeking at the test set.</p>
+          <div class="table-wrap"><table class="metric-table" id="tbl-models"></table></div>
+          <div class="callout" id="leak-callout"></div>
+          <details>
+            <summary>Results for each test patient</summary>
+            <div class="table-wrap"><table class="metric-table compact" id="tbl-records"></table></div>
+          </details>
+        </div>
+      </div>
+      <aside class="try"><b>Try this:</b> <button type="button" class="linkish" data-recipe="r232">open record 232</button>.
+        Most of its abnormal (S) beats are called normal. Why? In this patient the ectopic atrial rhythm <em>is</em> the usual
+        rhythm, so the beats are neither early nor differently shaped compared with the patient's norm. Real clinicians would
+        look at the P waves, which this model never analyses.</aside>
+    </section>
+
+    <!-- 6 -->
+    <section id="report" class="lesson">
+      <header class="lesson-head"><span class="step">6</span><div><h2>The report</h2><p>From beats to a rhythm summary</p></div></header>
+      <div class="grid-2">
+        <div class="card report-card" id="report-card">
+          <div id="verdict" class="verdict"></div>
+          <ul id="findings" class="findings"></ul>
+          <div class="table-wrap"><table class="kv-table" id="tbl-report"></table></div>
+          <p class="hint">Atrial fibrillation is a rhythm, not a beat type: it is screened with an RR irregularity index
+            (threshold <span id="af-th"></span>; on unseen patients sensitivity <span id="af-se"></span>, specificity <span id="af-sp"></span> per 30 s window).</p>
+          <button type="button" class="btn" id="btn-print">Print / save as PDF</button>
+        </div>
+        <div class="stack">
+          <div class="card plot-card">
+            <div class="plot-head"><h3>RR tachogram</h3><span class="muted">interval before each beat, coloured by class</span></div>
+            <canvas id="plot-tacho" class="spec"></canvas>
+          </div>
+          <div class="card upload">
+            <h3>Analyse your own ECG</h3>
+            <p class="hint">A CSV or text file with one ECG column (single lead, ideally lead II). Your file never leaves your computer: it is read and processed by this page only.</p>
+            <div class="upload-grid">
+              <label>File <input type="file" id="up-file" accept=".csv,.txt,.tsv,text/csv,text/plain"></label>
+              <label>Sampling rate (Hz) <input type="number" id="up-fs" value="360" min="50" max="5000" step="any"></label>
+              <label>Column (index or name) <input type="text" id="up-col" value="0"></label>
+              <label>Units <select id="up-units"><option value="1">millivolts</option><option value="0.001">microvolts</option><option value="1000">volts</option></select></label>
+            </div>
+            <button type="button" class="btn primary" id="up-go">Analyse file</button>
+            <p class="hint" id="up-status" role="status"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="learn-more" class="lesson references">
+      <header class="lesson-head"><span class="step">+</span><div><h2>Learn more</h2><p>Sources and further reading</p></div></header>
+      <div class="grid-2">
+        <ol class="refs">
+          <li>Moody GB, Mark RG. The impact of the MIT-BIH Arrhythmia Database. <i>IEEE Eng Med Biol</i> 20(3):45-50, 2001.</li>
+          <li>Goldberger AL, et al. PhysioBank, PhysioToolkit, and PhysioNet. <i>Circulation</i> 101(23):e215-e220, 2000.</li>
+          <li>Moody GB, Muldrow WE, Mark RG. A noise stress test for arrhythmia detectors. <i>Computers in Cardiology</i> 11:381-384, 1984.</li>
+          <li>Pan J, Tompkins WJ. A real-time QRS detection algorithm. <i>IEEE Trans Biomed Eng</i> 32(3):230-236, 1985.</li>
+          <li>de Chazal P, O'Dwyer M, Reilly RB. Automatic classification of heartbeats using ECG morphology and heartbeat interval features. <i>IEEE Trans Biomed Eng</i> 51(7):1196-1206, 2004.</li>
+          <li>ANSI/AAMI EC57: Testing and reporting performance results of cardiac rhythm and ST segment measurement algorithms.</li>
+          <li>Kligfield P, et al. Recommendations for the standardization and interpretation of the electrocardiogram, Part I. <i>Circulation</i> 115:1306-1324, 2007.</li>
+        </ol>
+        <div class="prose">
+          <p><b>Data licence.</b> MIT-BIH recordings are redistributed here under the
+            <a href="https://opendatacommons.org/licenses/by/1-0/" target="_blank" rel="noopener">Open Data Commons Attribution License v1.0</a>
+            via PhysioNet. Only ten one-minute excerpts and three one-minute noise clips are included in this site.</p>
+          <p><b>Code.</b> The Python package that trains the model, evaluates it and generates reports lives in the same
+            repository as this page. The JavaScript here is a line-by-line port that is tested against the Python output.</p>
+          <p><b>Going further.</b> Try a 12-lead dataset such as <a href="https://physionet.org/content/ptb-xl/" target="_blank" rel="noopener">PTB-XL</a>,
+            P-wave features for supraventricular beats, patient-adaptive training, or deep learning (1-D CNNs) on raw waveforms.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>ECG Signal Lab: an open educational project for biomedical engineering. Not for clinical use.</p>
+  </footer>
+
+  <div id="loading" class="loading" role="status">Loading recordings and model...</div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

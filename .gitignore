@@ -1,0 +1,16 @@
+# PhysioNet downloads and caches (re-create with `python -m ecglab download`).
+# Anchored with a leading slash so docs/data (the website's data) is NOT ignored.
+/data/
+# Trained scikit-learn models (re-create with `python -m ecglab train`; the website model lives in docs/data)
+/models/
+# Generated reports
+/reports/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+Thumbs.db
