@@ -1,6 +1,11 @@
 # ECG Signal Lab
 
+[![tests](https://github.com/ShivamD18/SignalFilteringECG/actions/workflows/ci.yml/badge.svg)](https://github.com/ShivamD18/SignalFilteringECG/actions/workflows/ci.yml)
+
 **Learn biomedical signal processing by cleaning up real heartbeats and teaching a machine to read them.**
+
+**Try it in your browser:** <https://shivamd18.github.io/SignalFilteringECG/>
+
 
 ECG Signal Lab is an open educational project with two halves:
 
@@ -63,8 +68,8 @@ Comparison of the four algorithms (test set = unseen patients):
 Requires Python 3.10+.
 
 ```bash
-git clone https://github.com/<your-username>/ecg-signal-lab.git
-cd ecg-signal-lab
+git clone https://github.com/ShivamD18/SignalFilteringECG.git
+cd SignalFilteringECG
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
@@ -111,7 +116,7 @@ python -m http.server 8000 --directory docs     # then visit http://localhost:80
 1. Push this repository to GitHub.
 2. Go to **Settings -> Pages**. Under *Build and deployment*, choose **Deploy from a branch**, then
    branch **main** and folder **/docs**, and save.
-3. After a minute the site is live at `https://<your-username>.github.io/ecg-signal-lab/`.
+3. After a minute the site is live at <https://shivamd18.github.io/SignalFilteringECG/>.
 
 ### Lessons
 
